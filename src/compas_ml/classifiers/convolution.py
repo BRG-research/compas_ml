@@ -51,7 +51,7 @@ def full_layer(input, size):
 
 
 def convolution(training_data, training_labels, testing_data, testing_labels, fdim, features, classes, dimx, dimy,
-                channels, steps, batch, neurons):
+                channels, steps, batch, neurons, multi_layer=False):
 
     """ Convolution Neural Network.
 
@@ -83,6 +83,8 @@ def convolution(training_data, training_labels, testing_data, testing_labels, fd
         Batch size of images per step.
     neurons : int
         Number of neurons.
+    multi_layer : bool
+        Multiple convolutions per layer.
 
     Returns
     -------
@@ -100,18 +102,29 @@ def convolution(training_data, training_labels, testing_data, testing_labels, fd
     keep_prob = tf.placeholder(tf.float32)
     m = training_data.shape[0]
 
-    conv1_1 = conv_layer(x_, shape=[fdim, fdim, channels, features])
-    conv1_2 = conv_layer(conv1_1, shape=[fdim, fdim, features, features])
-    conv1_3 = conv_layer(conv1_2, shape=[fdim, fdim, features, features])
-    conv1_pool = max_pool_2x2(conv1_3)
-    conv1_drop = tf.nn.dropout(conv1_pool, keep_prob=keep_prob)
+    if not multi_layer:
 
-    conv2_1 = conv_layer(conv1_drop, shape=[fdim, fdim, features, 2 * features])
-    conv2_2 = conv_layer(conv2_1, shape=[fdim, fdim, 2 * features, 2 * features])
-    conv2_3 = conv_layer(conv2_2, shape=[fdim, fdim, 2 * features, 2 * features])
-    conv2_pool = max_pool_2x2(conv2_3)
-    conv2_drop = tf.nn.dropout(conv2_pool, keep_prob=keep_prob)
-    conv2_flat = tf.reshape(conv2_drop, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
+        conv1 = conv_layer(x_, shape=[fdim, fdim, channels, features])
+        conv1_pool = max_pool_2x2(conv1)
+
+        conv2 = conv_layer(conv1_pool, shape=[fdim, fdim, features, 2 * features])
+        conv2_pool = max_pool_2x2(conv2)
+        conv2_flat = tf.reshape(conv2_pool, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
+
+    else:
+
+        conv1_1 = conv_layer(x_, shape=[fdim, fdim, channels, features])
+        conv1_2 = conv_layer(conv1_1, shape=[fdim, fdim, features, features])
+        conv1_3 = conv_layer(conv1_2, shape=[fdim, fdim, features, features])
+        conv1_pool = max_pool_2x2(conv1_3)
+        conv1_drop = tf.nn.dropout(conv1_pool, keep_prob=keep_prob)
+
+        conv2_1 = conv_layer(conv1_drop, shape=[fdim, fdim, features, 2 * features])
+        conv2_2 = conv_layer(conv2_1, shape=[fdim, fdim, 2 * features, 2 * features])
+        conv2_3 = conv_layer(conv2_2, shape=[fdim, fdim, 2 * features, 2 * features])
+        conv2_pool = max_pool_2x2(conv2_3)
+        conv2_drop = tf.nn.dropout(conv2_pool, keep_prob=keep_prob)
+        conv2_flat = tf.reshape(conv2_drop, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
 
     full_1 = tf.nn.relu(full_layer(conv2_flat, neurons))
     full1_drop = tf.nn.dropout(full_1, keep_prob=keep_prob)
@@ -160,70 +173,76 @@ if __name__ == "__main__":
     from os import listdir
     import json
 
+    # ------------------------------------------------------------------------------
     # MNIST
+    # ------------------------------------------------------------------------------
 
-    # path = '/home/al/compas_ml/data/mnist/'
-
-    # training_data   = []
-    # testing_data    = []
-    # training_labels = []
-    # testing_labels  = []
-
-    # for j in ['testing', 'training']:
-    #     for i in range(10):
-    #         files = listdir('{0}/{1}/{2}'.format(path, j, i))
-    #         for file in files:
-    #             image = imread('{0}/{1}/{2}/{3}'.format(path, j, i, file))
-    #             dimx, dimy = image.shape
-    #             binary = [0] * 10
-    #             binary[i] = 1
-    #             if j == 'training':
-    #                 training_data.append(image)
-    #                 training_labels.append(binary)
-    #             else:
-    #                 testing_data.append(image)
-    #                 testing_labels.append(binary)
-
-    # training_data = array(training_data)[:, :, :, newaxis]
-    # testing_data = array(testing_data)[:, :, :, newaxis]
-
-    # plt.imshow(training_data[0, :, :])
-    # plt.show()
-
-    # convolution(training_data, training_labels, testing_data, testing_labels, fdim=5, features=32, classes=10,
-    #             dimx=dimx, dimy=dimy, channels=1, steps=500, batch=100, neurons=1024)
-
-    # CIFAR10
-
-    path = '/home/al/compas_ml/data/cifar10/'
+    path = '/home/al/compas_ml/data/mnist/'
 
     training_data   = []
     testing_data    = []
     training_labels = []
     testing_labels  = []
 
-    with open(path + 'columns.json', 'r') as f:
-        labels = json.load(f)
-
     for j in ['testing', 'training']:
-        files = listdir('{0}/{1}/'.format(path, j))
-        for file in files:
-            image = imread('{0}/{1}/{2}'.format(path, j, file))
-            i = labels[file.split('_')[1][:-4]]
-            binary = [0] * 10
-            binary[i] = 1
-            if j == 'training':
-                training_data.append(image)
-                training_labels.append(binary)
-            else:
-                testing_data.append(image)
-                testing_labels.append(binary)
-        dimx, dimy, dimz = image.shape
+        for i in range(10):
+            files = listdir('{0}/{1}/{2}'.format(path, j, i))
+            for file in files:
+                image = imread('{0}/{1}/{2}/{3}'.format(path, j, i, file))
+                dimx, dimy = image.shape
+                binary = [0] * 10
+                binary[i] = 1
+                if j == 'training':
+                    training_data.append(image)
+                    training_labels.append(binary)
+                else:
+                    testing_data.append(image)
+                    testing_labels.append(binary)
 
-    training_data = array(training_data)
-    testing_data = array(testing_data)
-    # plt.imshow(training_data[0, :, :, :])
+    training_data = array(training_data)[:, :, :, newaxis]
+    testing_data = array(testing_data)[:, :, :, newaxis]
+
+    # plt.imshow(training_data[0, :, :])
     # plt.show()
 
-    convolution(training_data, training_labels, testing_data, testing_labels, fdim=3, features=50, classes=10,
-                dimx=dimx, dimy=dimy, channels=3, steps=1000, batch=300, neurons=500)
+    convolution(training_data, training_labels, testing_data, testing_labels, fdim=5, features=32, classes=10,
+                dimx=dimx, dimy=dimy, channels=1, steps=500, batch=100, neurons=1024)
+
+
+    # ------------------------------------------------------------------------------
+    # CIFAR10 (currently doesnt fit well)
+    # ------------------------------------------------------------------------------
+
+    # path = '/home/al/compas_ml/data/cifar10/'
+
+    # training_data   = []
+    # testing_data    = []
+    # training_labels = []
+    # testing_labels  = []
+
+    # with open(path + 'columns.json', 'r') as f:
+    #     labels = json.load(f)
+
+    # for j in ['testing', 'training']:
+    #     files = listdir('{0}/{1}/'.format(path, j))
+    #     for file in files:
+    #         image = imread('{0}/{1}/{2}'.format(path, j, file))
+    #         i = labels[file.split('_')[1][:-4]]
+    #         binary = [0] * 10
+    #         binary[i] = 1
+    #         if j == 'training':
+    #             training_data.append(image)
+    #             training_labels.append(binary)
+    #         else:
+    #             testing_data.append(image)
+    #             testing_labels.append(binary)
+    #     dimx, dimy, dimz = image.shape
+
+    # training_data = array(training_data)
+    # testing_data = array(testing_data)
+
+    # # plt.imshow(training_data[0, :, :, :])
+    # # plt.show()
+
+    # convolution(training_data, training_labels, testing_data, testing_labels, fdim=2, features=50, classes=10,
+    #             dimx=dimx, dimy=dimy, channels=3, steps=1000, batch=300, neurons=2000, multi_layer=True)
