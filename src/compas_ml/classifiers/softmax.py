@@ -17,11 +17,11 @@ __email__     = 'liew@arch.ethz.ch'
 
 
 __all__ = [
-    'softmax_regression',
+    'softmax',
 ]
 
 
-def softmax_regression(training_data, training_labels, testing_data, testing_labels, classes, length, steps, batch):
+def softmax(training_data, training_labels, testing_data, testing_labels, classes, length, steps, batch):
 
     """ Softmax Regression Classifier.
 
@@ -134,5 +134,5 @@ if __name__ == "__main__":
     # plt.imshow(array(training_data).transpose())
     # plt.show()
 
-    softmax_regression(training_data, training_labels, testing_data, testing_labels,
+    softmax(training_data, training_labels, testing_data, testing_labels,
                        classes=10, length=length, steps=1000, batch=300)

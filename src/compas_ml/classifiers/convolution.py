@@ -58,11 +58,11 @@ def convolution(training_data, training_labels, testing_data, testing_labels, fd
     Parameters
     ----------
     training_data : array
-        Training data of size (m x length).
+        Training data of size (m x dimx x dimy).
     training_labels : array
         Training labels of size (m x classes).
     testing_data : array
-        Testing data of size (n x length).
+        Testing data of size (n x dimx x dimy).
     testing_labels : array
         Testing labels of size (n x classes).
     fdim : int
