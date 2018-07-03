@@ -166,11 +166,17 @@ def convolution(training_data, training_labels, testing_data, testing_labels, fd
 
 if __name__ == "__main__":
 
+    from compas_ml.helpers import classes_to_onehot
+
     from matplotlib import pyplot as plt
+
     from numpy import array
     from numpy import newaxis
-    from scipy.misc import imread
+
     from os import listdir
+
+    from scipy.misc import imread
+
     import json
 
     # ------------------------------------------------------------------------------
@@ -190,17 +196,17 @@ if __name__ == "__main__":
             for file in files:
                 image = imread('{0}/{1}/{2}/{3}'.format(path, j, i, file))
                 dimx, dimy = image.shape
-                binary = [0] * 10
-                binary[i] = 1
                 if j == 'training':
                     training_data.append(image)
-                    training_labels.append(binary)
+                    training_labels.append(i)
                 else:
                     testing_data.append(image)
-                    testing_labels.append(binary)
+                    testing_labels.append(i)
 
-    training_data = array(training_data)[:, :, :, newaxis]
-    testing_data = array(testing_data)[:, :, :, newaxis]
+    training_data   = array(training_data)[:, :, :, newaxis]
+    testing_data    = array(testing_data)[:, :, :, newaxis]
+    training_labels = classes_to_onehot(classes=training_labels, length=10)
+    testing_labels  = classes_to_onehot(classes=testing_labels, length=10)
 
     # plt.imshow(training_data[0, :, :])
     # plt.show()
@@ -228,18 +234,18 @@ if __name__ == "__main__":
     #     for file in files:
     #         image = imread('{0}/{1}/{2}'.format(path, j, file))
     #         i = labels[file.split('_')[1][:-4]]
-    #         binary = [0] * 10
-    #         binary[i] = 1
     #         if j == 'training':
     #             training_data.append(image)
-    #             training_labels.append(binary)
+    #             training_labels.append(i)
     #         else:
     #             testing_data.append(image)
-    #             testing_labels.append(binary)
+    #             testing_labels.append(i)
     #     dimx, dimy, dimz = image.shape
 
     # training_data = array(training_data)
     # testing_data = array(testing_data)
+    # training_labels = classes_to_onehot(classes=training_labels, length=10)
+    # testing_labels  = classes_to_onehot(classes=testing_labels, length=10)
 
     # # plt.imshow(training_data[0, :, :, :])
     # # plt.show()

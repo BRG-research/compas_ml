@@ -96,9 +96,14 @@ def softmax(training_data, training_labels, testing_data, testing_labels, classe
 
 if __name__ == "__main__":
 
+    from compas_ml.helpers import classes_to_onehot
+
     from matplotlib import pyplot as plt
+
     from numpy import array
+
     from scipy.misc import imread
+
     from os import listdir
 
 
@@ -122,17 +127,18 @@ if __name__ == "__main__":
                     else:
                         dimx, dimy, dimz = image.shape
                         length = dimx * dimy * dimz
-                binary = [0] * 10
-                binary[i] = 1
                 if j == 'training':
                     training_data.append(image.reshape(length))
-                    training_labels.append(binary)
+                    training_labels.append(i)
                 else:
                     testing_data.append(image.reshape(length))
-                    testing_labels.append(binary)
+                    testing_labels.append(i)
 
     # plt.imshow(array(training_data).transpose())
     # plt.show()
 
+    training_labels = classes_to_onehot(classes=training_labels, length=10)
+    testing_labels  = classes_to_onehot(classes=testing_labels, length=10)
+
     softmax(training_data, training_labels, testing_data, testing_labels,
-                       classes=10, length=length, steps=1000, batch=300)
+            classes=10, length=length, steps=1000, batch=300)
