@@ -5,9 +5,6 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-# from numpy import asarray
-# from numpy import float32
-# from numpy.random import choice
 from numpy.random import shuffle
 
 
@@ -22,8 +19,8 @@ __all__ = [
 ]
 
 
-def recurrent(training_data, training_labels, testing_data, testing_labels, lengths, classes, neurons, steps,
-              batch):
+def recurrent(training_data, training_labels, testing_data, testing_labels, training_lengths, testing_lengths, classes,
+              neurons, steps, batch):
 
     """ Recurrent Neural Network.
 
@@ -31,17 +28,20 @@ def recurrent(training_data, training_labels, testing_data, testing_labels, leng
     ----------
     training_data : array
         Training data of size (m x n), each entry is a string sequence.
-    # training_labels : array
-    #     Training labels of size (m x classes).
-    # testing_data : array
-    #     Testing data of size (n x dimx x dimy).
-    # testing_labels : array
-    #     Testing labels of size (n x classes).
-    # lengths
+    training_labels : array
+        Training labels of size (m x classes).
+    testing_data : array
+        Testing data.
+    testing_labels : array
+        Testing labels.
+    training_lengths : list
+        Lengths of each sequence in training set.
+    testing_lengths : list
+        Lengths of each sequence in testing set.
     classes : int
         Number of classes.
-    # neurons : int
-    #     Number of neurons.
+    neurons : int
+        Number of neurons.
     steps : int
         Number of analysis steps.
     batch : int
@@ -55,7 +55,10 @@ def recurrent(training_data, training_labels, testing_data, testing_labels, leng
 
     print('***** Session started *****')
 
+    dimension = 64
+
     m = training_data.shape[0]
+    n = len(training_data[0].split())
 
     word_index = {}
     index = 0
@@ -67,59 +70,61 @@ def recurrent(training_data, training_labels, testing_data, testing_labels, leng
                 index += 1
 
     index_word = {index: word for word, index in word_index.items()}
-    # size = len(index_word)
+    size = len(index_word)
 
-    print(index_word)
-    # def make_sentence_batch(batch_size, data, labels, lengths):
+    x_ = tf.placeholder(tf.int32, shape=[None, n])
+    y_ = tf.placeholder(tf.float32, shape=[None, classes])
+    z_ = tf.placeholder(tf.int32, shape=[None])
 
-    #     indices = list(range(len(data)))
-    #     shuffle(indices)
-    #     batch = indices[:batch_size]
-    #     x = [[word_index[word] for word in data[i].split()] for i in batch]
-    #     y = [labels[i] for i in batch]  # slice?
-    #     seqlens = [lengths[i] for i in batch]  # slice?
+    def make_sentence_batch(batch_size, data, labels, lengths):
 
-    #     return x, y, seqlens
+        indices = list(range(len(data)))
+        shuffle(indices)
+        batch = indices[:batch_size]
+        x = [[word_index[word] for word in data[i].split()] for i in batch]
+        y = [labels[i] for i in batch]
+        seqlens = [lengths[i] for i in batch]
 
-    # training_data = asarray(training_data, dtype=float32)
-    # training_labels = asarray(training_labels, dtype=float32)
+        return x, y, seqlens
 
-    x_ = tf.placeholder(tf.int32, shape=[batch, steps])
-    y_ = tf.placeholder(tf.float32, shape=[batch, classes])
-    z_ = tf.placeholder(tf.int32, shape=[batch])
+    with tf.name_scope('embeddings'):
 
-    # rnn_cell = tf.contrib.rnn.BasicRNNCell(neurons)
-    # outputs, _ = tf.nn.dynamic_rnn(rnn_cell, x_, dtype=tf.float32)
+        embeddings = tf.Variable(tf.random_uniform([size, dimension], -1, 1), name='embedding')
+        embed = tf.nn.embedding_lookup(embeddings, x_)
 
-    # Wl = tf.Variable(tf.truncated_normal([neurons, classes], mean=0, stddev=0.01))
-    # bl = tf.Variable(tf.truncated_normal([classes], mean=0, stddev=0.01))
-    # output = tf.matmul(outputs[:, -1, :], Wl) + bl
+    with tf.variable_scope('lstm'):
 
-    # diff = tf.nn.softmax_cross_entropy_with_logits(logits=output, labels=y_)
-    # cross_entropy = tf.reduce_mean(diff)
-    # train_step = tf.train.RMSPropOptimizer(0.001, 0.9).minimize(cross_entropy)
+        lstm_cell = tf.contrib.rnn.BasicLSTMCell(neurons, forget_bias=1.0)
+        outputs, states = tf.nn.dynamic_rnn(lstm_cell, embed, sequence_length=z_, dtype=tf.float32)
 
-    # correct_prediction = tf.equal(tf.argmax(y_, 1), tf.argmax(output, 1))
-    # accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    Wl = {'linear_layer': tf.Variable(tf.truncated_normal([neurons, classes], mean=0, stddev=0.01))}
+    bl = {'linear_layer': tf.Variable(tf.truncated_normal([classes], mean=0, stddev=0.01))}
+    final_output = tf.matmul(states[1], Wl['linear_layer']) + bl['linear_layer']
+
+    diff = tf.nn.softmax_cross_entropy_with_logits(logits=final_output, labels=y_)
+    cross_entropy = tf.reduce_mean(diff)
+    train_step = tf.train.RMSPropOptimizer(0.001, 0.9).minimize(cross_entropy)
+
+    correct_prediction = tf.equal(tf.argmax(y_, 1), tf.argmax(final_output, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     with tf.Session() as session:
 
-        # session.run(tf.global_variables_initializer())
+        session.run(tf.global_variables_initializer())
 
-        # for i in range(steps):
+        for i in range(steps):
 
-        #     select = choice(m, batch, replace=False)
-        #     x_batch = training_data[select, :, :]
-        #     y_batch = training_labels[select, :]
+            x_batch, y_batch, z_batch = make_sentence_batch(batch, training_data, training_labels, training_lengths)
 
-        #     if (i + 1) % 10 == 0:
-        #         acc = session.run(accuracy, feed_dict={x_: x_batch, y_: y_batch})
-        #         print('Step: {0}: Accuracy: {1:.1f}'.format(i + 1, 100 * acc))
+            if (i + 1) % 10 == 0:
+                acc = session.run(accuracy, feed_dict={x_: x_batch, y_: y_batch, z_: z_batch})
+                print('Step: {0}: Accuracy: {1:.1f}'.format(i + 1, 100 * acc))
 
-        #     session.run(train_step, feed_dict={x_: x_batch, y_: y_batch})
+            session.run(train_step, feed_dict={x_: x_batch, y_: y_batch, z_: z_batch})
 
-        # acc = session.run(accuracy, feed_dict={x_: testing_data, y_: testing_labels})
-        # print('Testing accuracy: {1:.1f}'.format(i + 1, 100 * acc))
+        x_test, y_test, z_test = make_sentence_batch(len(testing_data), testing_data, testing_labels, testing_lengths)
+        acc = session.run(accuracy, feed_dict={x_: x_test, y_: y_test, z_: z_test})
+        print('Testing accuracy: {1:.1f}'.format(i + 1, 100 * acc))
 
         print('***** Session finished *****')
 
@@ -169,6 +174,8 @@ if __name__ == "__main__":
     testing_labels  = labels[n:]
 
     lengths *= 2
+    training_lengths = lengths[:n]
+    testing_lengths  = lengths[n:]
 
-    recurrent(training_data, training_labels, testing_data, testing_labels, lengths=lengths, neurons=500,
-              classes=2, steps=500, batch=100)
+    recurrent(training_data, training_labels, testing_data, testing_labels, training_lengths, testing_lengths,
+              neurons=500, classes=2, steps=100, batch=100)
