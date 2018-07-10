@@ -5,9 +5,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from numpy import asarray
-from numpy import float32
-from numpy import int32
+from numpy import reshape
 from numpy.random import choice
 
 
@@ -98,7 +96,7 @@ def softmax(training_data, training_labels, testing_data, testing_labels, classe
                 tf.summary.histogram('activations', activations)
                 return activations, weights
 
-        hidden1, weights1 = nn_layer(x_, lengths * channels, neurons, 'layer1')
+        hidden1, weights1 = nn_layer(x_, length * channels, neurons, 'layer1')
 
         with tf.name_scope('dropout'):
             keep_prob = tf.placeholder(tf.float32)
@@ -107,23 +105,16 @@ def softmax(training_data, training_labels, testing_data, testing_labels, classe
 
         y_pred, weights2 = nn_layer(dropped, neurons, classes, 'layer2', act=tf.identity)
 
-    #     weights = tf.matmul(weights1, weights2)
-    #     weights_shaped = tf.reshape(weights, [dims[0], dims[1], dims[2], classes])
-    #     weights_good, weights_bad = tf.split(weights_shaped, 2, axis=3)
-    #     good_r, good_g, good_b = tf.split(weights_good, 3, axis=2)
-    #     bad_r, bad_g, bad_b = tf.split(weights_bad, 3, axis=2)
-    #     good_r_ = tf.expand_dims(tf.squeeze(good_r, axis=3), 0)
-    #     good_g_ = tf.expand_dims(tf.squeeze(good_g, axis=3), 0)
-    #     good_b_ = tf.expand_dims(tf.squeeze(good_b, axis=3), 0)
-    #     bad_r_ = tf.expand_dims(tf.squeeze(bad_r, axis=3), 0)
-    #     bad_g_ = tf.expand_dims(tf.squeeze(bad_g, axis=3), 0)
-    #     bad_b_ = tf.expand_dims(tf.squeeze(bad_b, axis=3), 0)
-    #     tf.summary.image('good/compression', good_r_)
-    #     tf.summary.image('good/symmetry', good_g_)
-    #     tf.summary.image('good/independent', good_b_)
-    #     tf.summary.image('bad/compression', bad_r_)
-    #     tf.summary.image('bad/symmetry', bad_g_)
-    #     tf.summary.image('bad/independent', bad_b_)
+        _, dimx, dimy, dimz = testing_data.shape
+        weights = tf.matmul(weights1, weights2)
+        weights_shaped = tf.reshape(weights, [dimx, dimy, dimz, classes])
+        weights_classes = tf.split(weights_shaped, classes, axis=3)
+        for i in range(classes):
+            weights_split = weights_classes[i]
+            weights_channels = tf.split(weights_split, dimz, axis=2)
+            for j in range(dimz):
+                image = tf.expand_dims(tf.squeeze(weights_channels[j], axis=3), axis=0)
+                tf.summary.image('class{0}-channel{1}'.format(i, j), image)
 
         with tf.name_scope('cross_entropy'):
             diff = tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_pred)
@@ -146,104 +137,41 @@ def softmax(training_data, training_labels, testing_data, testing_labels, classe
         testing_writer  = tf.summary.FileWriter(model_dir + '/testing/')
         tf.global_variables_initializer().run()
 
-    #     def feed_dict(train):
-    #         if train or FLAGS.fake_data:
-    #             select = choice(train_data.shape[0], batch, replace=False)
-    #             xs = reshape(train_data[select, :, :, :], (batch, dims[0] * dims[1] * dims[2]))
-    #             ys = train_labels[select, :]
-    #             k = 0.5
-    #         else:
-    #             xs = reshape(test_data, (test_data.shape[0], dims[0] * dims[1] * dims[2]))
-    #             ys = test_labels
-    #             k = 1.0
-    #         return {x: xs, y_: ys, keep_prob: k}
+        def feed_dict(train):
+            if train:
+                select = choice(training_data.shape[0], batch, replace=False)
+                xs = reshape(training_data[select, :, :, :], (batch, length * channels))
+                ys = training_labels[select, :]
+                k = 0.5
+            else:
+                xs = reshape(testing_data, (testing_data.shape[0], length * channels))
+                ys = testing_labels
+                k = 1.0
+            return {x_: xs, y_: ys, keep_prob: k}
 
-    #     for i in range(FLAGS.max_steps):
-    #         if i % 10 == 0:
-    #             summary, acc = session.run([merged, accuracy], feed_dict=feed_dict(False))
-    #             testing_writer.add_summary(summary, i)
-    #             print('Accuracy at step %s: %s' % (i, acc))
-    #         else:
-    #             if i % 100 == 99:
-    #                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-    #                 run_metadata = tf.RunMetadata()
-    #                 summary, _ = session.run([merged, train_step],
-    #                                       feed_dict=feed_dict(True),
-    #                                       options=run_options,
-    #                                       run_metadata=run_metadata)
-    #                 training_writer.add_run_metadata(run_metadata, 'step%03d' % i)
-    #                 training_writer.add_summary(summary, i)
-    #                 print('Adding run metadata for', i)
-    #             else:
-    #                 summary, _ = session.run([merged, train_step], feed_dict=feed_dict(True))
-    #                 training_writer.add_summary(summary, i)
-    #     training_writer.close()
-    #     testing_writer.close()
+        for i in range(steps):
+            if i % 10 == 0:
+                summary, acc = session.run([merged, accuracy], feed_dict=feed_dict(False))
+                testing_writer.add_summary(summary, i)
+                print('Accuracy at step %s: %s' % (i + 1, acc))
+            else:
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+                summary, _ = session.run([merged, train_step], feed_dict=feed_dict(True), options=run_options,
+                                         run_metadata=run_metadata)
+                training_writer.add_run_metadata(run_metadata, 'step%03d' % i)
+                training_writer.add_summary(summary, i)
+        training_writer.close()
+        testing_writer.close()
 
 
-    # def main(_):
-    #     if tf.gfile.Exists(FLAGS.log_dir):
-    #         tf.gfile.DeleteRecursively(FLAGS.log_dir)
-    #     tf.gfile.MakeDirs(FLAGS.log_dir)
-    #     train()
+    def main(_):
+        if tf.gfile.Exists(model_dir):
+            tf.gfile.DeleteRecursively(model_dir)
+        tf.gfile.MakeDirs(model_dir)
+        train()
 
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--fake_data', nargs='?', const=True, type=bool, default=False, help='Fake data for testing.')
-    # parser.add_argument('--max_steps', type=int, default=steps, help='Number of steps for training.')
-    # parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate')
-    # parser.add_argument('--dropout', type=float, default=0.9, help='Keep probability for training dropout.')
-    # parser.add_argument('--log_dir', type=str, default=model_dir, help='Summaries log directory')
-
-    # FLAGS, unparsed = parser.parse_known_args()
-
-    # tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # training_data   = asarray(training_data, dtype=float32)
-    # testing_data    = asarray(training_data, dtype=float32)
-    # training_labels = asarray(training_labels, dtype=int32)
-    # testing_labels  = asarray(training_labels, dtype=int32)
-
-    # m = training_data.shape[0]
-
-    # y_true = tf.placeholder(tf.float32, [None, classes])
-    # y_pred = tf.matmul(x, W)
-
-    # diff = tf.nn.softmax_cross_entropy_with_logits(logits=y_pred, labels=y_true)
-    # cross_entropy = tf.reduce_mean(diff)
-    # gd_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
-
-    # correct_mask = tf.equal(tf.argmax(y_pred, 1), tf.argmax(y_true, 1))
-    # accuracy = tf.reduce_mean(tf.cast(correct_mask, tf.float32))
-
-    # with tf.Session() as session:
-
-    #     session.run(tf.global_variables_initializer())
-
-    #     for i in range(steps):
-
-    #         select = choice(m, batch, replace=False)
-    #         x_batch = training_data[select, :]
-    #         y_batch = training_labels[select, :]
-
-    #         session.run(gd_step, feed_dict={x: x_batch, y_true: y_batch})
-
-    #         if (i + 1) % 10 == 0:
-    #             print('Step: {0}'.format(i + 1))
-
-    #     acc = session.run(accuracy, feed_dict={x: testing_data, y_true: testing_labels})
-    #     print('Accuracy: {0:.1f} %'.format(100 * acc))
+    tf.app.run(main=main)
 
     print('***** Session finished *****')
 
@@ -259,6 +187,7 @@ if __name__ == "__main__":
     from matplotlib import pyplot as plt
 
     from numpy import array
+    from numpy import newaxis
 
     from scipy.misc import imread
 
@@ -299,5 +228,8 @@ if __name__ == "__main__":
 
     model_dir = '/home/al/temp/tf/'
 
-    softmax(training_data, training_labels, testing_data, testing_labels,
-            classes=10, length=length, steps=1000, batch=300, model_dir=model_dir, channels=1, neurons=1024)
+    training_data = array(training_data)[:, :, :, newaxis]
+    testing_data = array(testing_data)[:, :, :, newaxis]
+
+    softmax(training_data, array(training_labels), testing_data, array(testing_labels), classes=10, length=length,
+            steps=500, batch=300, model_dir=model_dir, channels=1, neurons=1024)
