@@ -105,7 +105,7 @@ def softmax(training_data, training_labels, testing_data, testing_labels, classe
 
         y_pred, weights2 = nn_layer(dropped, neurons, classes, 'layer2', act=tf.identity)
 
-        _, dimx, dimy, dimz = testing_data.shape
+        _, dimx, dimy, dimz = training_data.shape
         weights = tf.matmul(weights1, weights2)
         weights_shaped = tf.reshape(weights, [dimx, dimy, dimz, classes])
         weights_classes = tf.split(weights_shaped, classes, axis=3)
