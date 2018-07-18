@@ -8,6 +8,10 @@ import tensorflow as tf
 from numpy import reshape
 from numpy.random import choice
 
+import os
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 
 __author__    = ['Andrew Liew <liew@arch.ethz.ch>']
 __copyright__ = 'Copyright 2018, BLOCK Research Group - ETH Zurich'
@@ -21,7 +25,7 @@ __all__ = [
 
 
 def softmax(training_data, training_labels, testing_data, testing_labels, classes, length, steps, batch, model_dir,
-            channels, neurons):
+            channels, neurons, bias=0.1):
 
     """ Softmax Regression Classifier.
 
@@ -68,7 +72,7 @@ def softmax(training_data, training_labels, testing_data, testing_labels, classe
             return tf.Variable(tf.truncated_normal(shape, stddev=0.01))
 
         def bias_variable(shape):
-            return tf.Variable(tf.constant(0.1, shape=shape))
+            return tf.Variable(tf.constant(bias, shape=shape))
 
         def variable_summaries(var):
             with tf.name_scope('summaries'):
@@ -153,7 +157,7 @@ def softmax(training_data, training_labels, testing_data, testing_labels, classe
             if i % 10 == 0:
                 summary, acc = session.run([merged, accuracy], feed_dict=feed_dict(False))
                 testing_writer.add_summary(summary, i)
-                print('Accuracy at step %s: %s' % (i + 1, acc))
+                print('Accuracy at step %s: %s' % (i, acc))
             else:
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
