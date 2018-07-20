@@ -25,7 +25,7 @@ __all__ = [
 
 
 def softmax(training_data, training_labels, testing_data, testing_labels, classes, length, steps, batch, model_dir,
-            channels, neurons, bias=0.1):
+            channels, neurons, spread=0.01):
 
     """ Softmax Regression Classifier.
 
@@ -69,10 +69,10 @@ def softmax(training_data, training_labels, testing_data, testing_labels, classe
             y_ = tf.placeholder(tf.float32, [None, classes], name='y-input')
 
         def weight_variable(shape):
-            return tf.Variable(tf.truncated_normal(shape, stddev=0.01))
+            return tf.Variable(tf.truncated_normal(shape, stddev=spread))
 
         def bias_variable(shape):
-            return tf.Variable(tf.constant(bias, shape=shape))
+            return tf.Variable(tf.constant(spread, shape=shape))
 
         def variable_summaries(var):
             with tf.name_scope('summaries'):
