@@ -69,7 +69,7 @@ def softmax(training_data, training_labels, testing_data, testing_labels, classe
             y_ = tf.placeholder(tf.float32, [None, classes], name='y-input')
 
         def weight_variable(shape):
-            return tf.Variable(tf.truncated_normal(shape, stddev=spread))
+            return tf.Variable(tf.truncated_normal(shape, stddev=0.01))
 
         def bias_variable(shape):
             return tf.Variable(tf.constant(spread, shape=shape))
