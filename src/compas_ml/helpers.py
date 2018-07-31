@@ -19,20 +19,20 @@ __email__     = 'liew@arch.ethz.ch'
 
 
 __all__ = [
-    'classes_to_onehot',
+    'labels_to_onehot',
     'colour_weights',
 ]
 
 
-def classes_to_onehot(classes, length):
+def labels_to_onehot(labels, classes):
 
-    """ Convert a list of classes (integers) into one-hot format.
+    """ Convert a list of labels (integers) into one-hot format.
 
     Parameters
     ----------
-    classes : list
-        A list of integer classes, counting from 0.
-    length : int
+    labels : list
+        A list of integer labels, counting from 0.
+    classes : int
         Number of class integers.
 
     Returns
@@ -42,12 +42,12 @@ def classes_to_onehot(classes, length):
 
     """
 
-    for c, i in enumerate(classes):
-        onehot = [0] * length
+    for c, i in enumerate(labels):
+        onehot = [0] * classes
         onehot[i] = 1
-        classes[c] = onehot
+        labels[c] = onehot
 
-    return classes
+    return labels
 
 
 def colour_weights(path):
@@ -89,4 +89,4 @@ def colour_weights(path):
 
 if __name__ == "__main__":
 
-    colour_weights(path='/home/al/downloads/weights_1.png')
+    colour_weights(path='/home/al/downloads/ss.png')
