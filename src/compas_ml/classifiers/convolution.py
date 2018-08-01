@@ -133,6 +133,8 @@ def convolution(training_data, training_labels, testing_data, testing_labels, cl
 
                 return tf.matmul(input, weights) + biases
 
+        keep_prob = tf.placeholder(tf.float32)
+
         if not multi_layer:
 
             # x:          -1, dimx, dimy, channels
@@ -152,22 +154,18 @@ def convolution(training_data, training_labels, testing_data, testing_labels, cl
 
         else:
 
-            pass
+            conv1_1 = conv_layer(x_, shape=[fdim, fdim, channels, features])
+            conv1_2 = conv_layer(conv1_1, shape=[fdim, fdim, features, features])
+            conv1_3 = conv_layer(conv1_2, shape=[fdim, fdim, features, features])
+            conv1_pool = max_pool_2x2(conv1_3)
+            conv1_drop = tf.nn.dropout(conv1_pool, keep_prob=keep_prob)
 
-            # conv1_1 = conv_layer(x_, shape=[fdim, fdim, channels, features])
-            # conv1_2 = conv_layer(conv1_1, shape=[fdim, fdim, features, features])
-            # conv1_3 = conv_layer(conv1_2, shape=[fdim, fdim, features, features])
-            # conv1_pool = max_pool_2x2(conv1_3)
-            # conv1_drop = tf.nn.dropout(conv1_pool, keep_prob=keep_prob)
-
-            # conv2_1 = conv_layer(conv1_drop, shape=[fdim, fdim, features, 2 * features])
-            # conv2_2 = conv_layer(conv2_1, shape=[fdim, fdim, 2 * features, 2 * features])
-            # conv2_3 = conv_layer(conv2_2, shape=[fdim, fdim, 2 * features, 2 * features])
-            # conv2_pool = max_pool_2x2(conv2_3)
-            # conv2_drop = tf.nn.dropout(conv2_pool, keep_prob=keep_prob)
-            # conv2_flat = tf.reshape(conv2_drop, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
-
-        keep_prob = tf.placeholder(tf.float32)
+            conv2_1 = conv_layer(conv1_drop, shape=[fdim, fdim, features, 2 * features])
+            conv2_2 = conv_layer(conv2_1, shape=[fdim, fdim, 2 * features, 2 * features])
+            conv2_3 = conv_layer(conv2_2, shape=[fdim, fdim, 2 * features, 2 * features])
+            conv2_pool = max_pool_2x2(conv2_3)
+            conv2_drop = tf.nn.dropout(conv2_pool, keep_prob=keep_prob)
+            conv2_flat = tf.reshape(conv2_drop, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
 
         # full1: -1, neurons
         full1 = tf.nn.relu(full_layer(conv2_flat, size=neurons, name='full_1'))
@@ -288,7 +286,7 @@ if __name__ == "__main__":
 
 
     # ------------------------------------------------------------------------------
-    # CIFAR10 (currently doesnt fit well)
+    # CIFAR10
     # ------------------------------------------------------------------------------
 
     from scipy.misc import imread
@@ -326,5 +324,5 @@ if __name__ == "__main__":
 
     path = '/home/al/temp/'
 
-    convolution(training_data, training_labels, testing_data, testing_labels, fdim=5, features=50, classes=10,
-                steps=500, batch=300, neurons=1000, multi_layer=0, path=path)
+    convolution(training_data, training_labels, testing_data, testing_labels, fdim=5, features=30, classes=10,
+                steps=500, batch=300, neurons=500, multi_layer=0, path=path)
