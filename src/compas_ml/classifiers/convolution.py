@@ -1,254 +1,330 @@
 
-# from __future__ import absolute_import
-# from __future__ import division
-# from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-# import tensorflow as tf
+import tensorflow as tf
 
-# from numpy import asarray
-# from numpy import float32
-# from numpy.random import choice
+from compas_ml.helpers import labels_to_onehot
 
+from numpy import array
+from numpy import float32
+from numpy import newaxis
+from numpy.random import choice
 
-# __author__    = ['Andrew Liew <liew@arch.ethz.ch>']
-# __copyright__ = 'Copyright 2018, BLOCK Research Group - ETH Zurich'
-# __license__   = 'MIT License'
-# __email__     = 'liew@arch.ethz.ch'
+import os
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-# __all__ = [
-#     'convolution',
-# ]
 
+__author__    = ['Andrew Liew <liew@arch.ethz.ch>']
+__copyright__ = 'Copyright 2018, BLOCK Research Group - ETH Zurich'
+__license__   = 'MIT License'
+__email__     = 'liew@arch.ethz.ch'
 
-# def weight_variable(shape):
-#     return tf.Variable(tf.truncated_normal(shape, stddev=0.1))
 
+__all__ = [
+    'convolution',
+]
 
-# def bias_variable(shape):
-#     return tf.Variable(tf.constant(0.1, shape=shape))
 
+def convolution(training_data, training_labels, testing_data, testing_labels, classes, fdim, features, neurons,
+                steps, batch, path, multi_layer=False):
 
-# def conv2d(x, W):
-#     return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+    """ Pixel based Neural Network with Convolution layers.
 
+    Parameters
+    ----------
+    training_data : list
+        Training data of length m.
+    training_labels : list
+        Training labels of length m.
+    testing_data : list
+        Testing data of length p.
+    testing_labels : list
+        Testing labels of length p.
+    classes : int
+        Number of classes.
+    fdim : int
+        Filter size in x and y.
+    features : int
+        Number of features per convolution layer.
+    neurons : int
+        Number of neurons.
+    steps : int
+        Number of analysis steps.
+    batch : int
+        Batch size of images per step.
+    path : str
+        Model directory.
 
-# def max_pool_2x2(x):
-#     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+    Returns
+    -------
+    None
 
+    """
 
-# def conv_layer(input, shape):
-#     W = weight_variable(shape)
-#     b = bias_variable([shape[-1]])
-#     return tf.nn.relu(conv2d(input, W) + b)
+    print('***** Session started *****')
 
+    training_data = array(training_data, dtype=float32)
+    testing_data  = array(testing_data, dtype=float32)
 
-# def full_layer(input, size):
-#     in_size = int(input.get_shape()[1])
-#     W = weight_variable([in_size, size])
-#     b = bias_variable([size])
-#     return tf.matmul(input, W) + b
+    dims = training_data.shape
 
+    if len(dims) == 3:
+        m, dimx, dimy = dims
+        channels = 1
+        training_data = training_data[:, :, :, newaxis]
+        testing_data  = testing_data[:, :, :, newaxis]
 
-# def convolution(training_data, training_labels, testing_data, testing_labels, fdim, features, classes, dimx, dimy,
-#                 channels, steps, batch, neurons, multi_layer=False):
+    elif len(dims) == 4:
+        m, dimx, dimy, channels = dims
 
-#     """ Convolution Neural Network.
+    training_labels = array(labels_to_onehot(labels=training_labels, classes=classes))
+    testing_labels  = array(labels_to_onehot(labels=testing_labels, classes=classes))
 
-#     Parameters
-#     ----------
-#     training_data : array
-#         Training data of size (m x dimx x dimy).
-#     training_labels : array
-#         Training labels of size (m x classes).
-#     testing_data : array
-#         Testing data of size (n x dimx x dimy).
-#     testing_labels : array
-#         Testing labels of size (n x classes).
-#     fdim : int
-#         Filter size in x and y.
-#     features : int
-#         Number of features per convolution layer.
-#     classes : int
-#         Number of classes.
-#     dimx : int
-#         Number of pixels in x.
-#     dimy : int
-#         Number of pixels in y.
-#     channels : int
-#         Grey: 1, RGB: 3.
-#     steps : int
-#         Number of analysis steps.
-#     batch : int
-#         Batch size of images per step.
-#     neurons : int
-#         Number of neurons.
-#     multi_layer : bool
-#         Multiple convolutions per layer.
 
-#     Returns
-#     -------
-#     None
+    def train():
 
-#     """
+        session = tf.InteractiveSession()
 
-#     print('***** Session started *****')
+        with tf.name_scope('input'):
+            x = tf.placeholder(tf.float32, [None, dimx, dimy, channels])
+            y = tf.placeholder(tf.float32, [None, classes])
 
-#     training_data = asarray(training_data, dtype=float32)
-#     training_labels = asarray(training_labels, dtype=float32)
+        def weight_variable(shape):
 
-#     x_ = tf.placeholder(tf.float32, [None, dimx, dimy, channels])
-#     y_ = tf.placeholder(tf.float32, [None, classes])
-#     keep_prob = tf.placeholder(tf.float32)
-#     m = training_data.shape[0]
+            return tf.Variable(tf.truncated_normal(shape, stddev=0.01))
 
-#     if not multi_layer:
+        def bias_variable(shape):
 
-#         conv1 = conv_layer(x_, shape=[fdim, fdim, channels, features])
-#         conv1_pool = max_pool_2x2(conv1)
+            return tf.Variable(tf.constant(0.01, shape=shape))
 
-#         conv2 = conv_layer(conv1_pool, shape=[fdim, fdim, features, 2 * features])
-#         conv2_pool = max_pool_2x2(conv2)
-#         conv2_flat = tf.reshape(conv2_pool, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
+        def conv2d(x, W):
 
-#     else:
+            return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
-#         conv1_1 = conv_layer(x_, shape=[fdim, fdim, channels, features])
-#         conv1_2 = conv_layer(conv1_1, shape=[fdim, fdim, features, features])
-#         conv1_3 = conv_layer(conv1_2, shape=[fdim, fdim, features, features])
-#         conv1_pool = max_pool_2x2(conv1_3)
-#         conv1_drop = tf.nn.dropout(conv1_pool, keep_prob=keep_prob)
+        def max_pool_2x2(x):
 
-#         conv2_1 = conv_layer(conv1_drop, shape=[fdim, fdim, features, 2 * features])
-#         conv2_2 = conv_layer(conv2_1, shape=[fdim, fdim, 2 * features, 2 * features])
-#         conv2_3 = conv_layer(conv2_2, shape=[fdim, fdim, 2 * features, 2 * features])
-#         conv2_pool = max_pool_2x2(conv2_3)
-#         conv2_drop = tf.nn.dropout(conv2_pool, keep_prob=keep_prob)
-#         conv2_flat = tf.reshape(conv2_drop, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
+            return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-#     full_1 = tf.nn.relu(full_layer(conv2_flat, neurons))
-#     full1_drop = tf.nn.dropout(full_1, keep_prob=keep_prob)
+        def conv_layer(input, shape, name, activation=tf.nn.relu):
 
-#     y_conv = full_layer(full1_drop, classes)
+            with tf.name_scope(name):
 
-#     diff = tf.nn.softmax_cross_entropy_with_logits(logits=y_conv, labels=y_)
-#     cross_entropy = tf.reduce_mean(diff)
-#     train_step = tf.train.AdamOptimizer(0.0001).minimize(cross_entropy)
+                with tf.name_scope('weights'):
+                    weights = weight_variable(shape)
 
-#     correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
-#     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+                with tf.name_scope('biases'):
+                    biases = bias_variable([shape[-1]])
 
-#     with tf.Session() as session:
+                return activation(conv2d(input, weights) + biases)
 
-#         session.run(tf.global_variables_initializer())
+        def full_layer(input, size, name):
 
-#         for i in range(steps):
+            with tf.name_scope(name):
 
-#             select = choice(m, batch, replace=False)
-#             x_batch = training_data[select, :, :, :]
-#             y_batch = training_labels[select, :]
+                in_size = int(input.get_shape()[1])
+                with tf.name_scope('weights'):
+                    weights = weight_variable([in_size, size])
 
-#             if (i + 1) % 10 == 0:
-#                 acc = session.run(accuracy, feed_dict={x_: x_batch, y_: y_batch, keep_prob: 1.0})
-#                 print('Step: {0}: Accuracy: {1:.1f}'.format(i + 1, 100 * acc))
+                with tf.name_scope('biases'):
+                    biases = bias_variable([size])
 
-#             session.run(train_step, feed_dict={x_: x_batch, y_: y_batch, keep_prob: 0.5})
+                return tf.matmul(input, weights) + biases
 
-#         acc = session.run(accuracy, feed_dict={x_: testing_data, y_: testing_labels, keep_prob: 1.0})
-#         print('Testing accuracy: {1:.1f}'.format(i + 1, 100 * acc))
+        if not multi_layer:
 
-#     print('***** Session finished *****')
+            # x:          -1, dimx, dimy, channels
+            # conv1:      -1, dimx, dimy, features
+            # conv1_pool: -1, dimx/2, dimy/2, features
+            # weights1:   fdim, fdim, channels, features
+            conv1 = conv_layer(x, shape=[fdim, fdim, channels, features], name='conv_1')
+            conv1_pool = max_pool_2x2(conv1)
 
+            # conv2:      -1, dimx/2, dimy/2, 2*features
+            # conv2_pool: -1, dimx/4, dimy/4, 2*features
+            # conv2_flat: -1, dimx/4 * dimy/4 * 2*features
+            # weights2:   fdim, fdim, features, 2*features
+            conv2 = conv_layer(conv1_pool, shape=[fdim, fdim, features, 2 * features], name='conv_2')
+            conv2_pool = max_pool_2x2(conv2)
+            conv2_flat = tf.reshape(conv2_pool, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
 
-# # ==============================================================================
-# # Main
-# # ==============================================================================
+        else:
 
-# if __name__ == "__main__":
+            pass
 
-#     from compas_ml.helpers import classes_to_onehot
+            # conv1_1 = conv_layer(x_, shape=[fdim, fdim, channels, features])
+            # conv1_2 = conv_layer(conv1_1, shape=[fdim, fdim, features, features])
+            # conv1_3 = conv_layer(conv1_2, shape=[fdim, fdim, features, features])
+            # conv1_pool = max_pool_2x2(conv1_3)
+            # conv1_drop = tf.nn.dropout(conv1_pool, keep_prob=keep_prob)
 
-#     from matplotlib import pyplot as plt
+            # conv2_1 = conv_layer(conv1_drop, shape=[fdim, fdim, features, 2 * features])
+            # conv2_2 = conv_layer(conv2_1, shape=[fdim, fdim, 2 * features, 2 * features])
+            # conv2_3 = conv_layer(conv2_2, shape=[fdim, fdim, 2 * features, 2 * features])
+            # conv2_pool = max_pool_2x2(conv2_3)
+            # conv2_drop = tf.nn.dropout(conv2_pool, keep_prob=keep_prob)
+            # conv2_flat = tf.reshape(conv2_drop, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
 
-#     from numpy import array
-#     from numpy import newaxis
+        keep_prob = tf.placeholder(tf.float32)
 
-#     from os import listdir
+        # full1: -1, neurons
+        full1 = tf.nn.relu(full_layer(conv2_flat, size=neurons, name='full_1'))
+        full1_drop = tf.nn.dropout(full1, keep_prob=keep_prob)
 
-#     from scipy.misc import imread
+        # logits: -1, classes
+        logits = full_layer(full1_drop, size=classes, name='logits')
 
-#     import json
+        with tf.name_scope('loss'):
+            with tf.name_scope('total'):
+                loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=logits))
+        tf.summary.scalar('loss', loss)
 
-#     # ------------------------------------------------------------------------------
-#     # MNIST
-#     # ------------------------------------------------------------------------------
+        with tf.name_scope('train'):
+            train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 
-#     path = '/home/al/compas_ml/data/mnist/'
+        with tf.name_scope('accuracy'):
+            with tf.name_scope('correct_prediction'):
+                correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(y, 1))
+            with tf.name_scope('accuracy'):
+                accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        tf.summary.scalar('accuracy', accuracy)
 
-#     training_data   = []
-#     testing_data    = []
-#     training_labels = []
-#     testing_labels  = []
+        merged = tf.summary.merge_all()
+        training_writer = tf.summary.FileWriter('{0}/training/'.format(path), session.graph)
+        testing_writer  = tf.summary.FileWriter('{0}/testing/'.format(path))
 
-#     for j in ['testing', 'training']:
-#         for i in range(10):
-#             files = listdir('{0}/{1}/{2}'.format(path, j, i))
-#             for file in files:
-#                 image = imread('{0}/{1}/{2}/{3}'.format(path, j, i, file))
-#                 dimx, dimy = image.shape
-#                 if j == 'training':
-#                     training_data.append(image)
-#                     training_labels.append(i)
-#                 else:
-#                     testing_data.append(image)
-#                     testing_labels.append(i)
+        tf.global_variables_initializer().run()
 
-#     training_data   = array(training_data)[:, :, :, newaxis]
-#     testing_data    = array(testing_data)[:, :, :, newaxis]
-#     training_labels = classes_to_onehot(classes=training_labels, length=10)
-#     testing_labels  = classes_to_onehot(classes=testing_labels, length=10)
+        def feed_dict(train):
 
-#     # plt.imshow(training_data[0, :, :])
-#     # plt.show()
+            if train:
+                select  = choice(m, batch, replace=False)
+                x_batch = training_data[select, :, :, :]
+                y_batch = training_labels[select, :]
+                k = 0.5
 
-#     convolution(training_data, training_labels, testing_data, testing_labels, fdim=5, features=32, classes=10,
-#                 dimx=dimx, dimy=dimy, channels=1, steps=500, batch=100, neurons=1024)
+            else:
+                x_batch = testing_data
+                y_batch = testing_labels
+                k = 1.0
 
+            return {x: x_batch, y: y_batch, keep_prob: k}
 
-#     # ------------------------------------------------------------------------------
-#     # CIFAR10 (currently doesnt fit well)
-#     # ------------------------------------------------------------------------------
+        for i in range(steps):
 
-#     # path = '/home/al/compas_ml/data/cifar10/'
+            if (i + 1) % 10 == 0:
+                summary, acc = session.run([merged, accuracy], feed_dict=feed_dict(False))
+                testing_writer.add_summary(summary, i + 1)
+                print('Accuracy Step %s: %s' % (i + 1, acc))
 
-#     # training_data   = []
-#     # testing_data    = []
-#     # training_labels = []
-#     # testing_labels  = []
+            else:
+                options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+                summary, _ = session.run([merged, train_step], feed_dict=feed_dict(True), options=options,
+                                         run_metadata=run_metadata)
+                training_writer.add_run_metadata(run_metadata, 'Step: %03d' % (i + 1))
+                training_writer.add_summary(summary, i + 1)
 
-#     # with open(path + 'columns.json', 'r') as f:
-#     #     labels = json.load(f)
+        training_writer.close()
+        testing_writer.close()
 
-#     # for j in ['testing', 'training']:
-#     #     files = listdir('{0}/{1}/'.format(path, j))
-#     #     for file in files:
-#     #         image = imread('{0}/{1}/{2}'.format(path, j, file))
-#     #         i = labels[file.split('_')[1][:-4]]
-#     #         if j == 'training':
-#     #             training_data.append(image)
-#     #             training_labels.append(i)
-#     #         else:
-#     #             testing_data.append(image)
-#     #             testing_labels.append(i)
-#     #     dimx, dimy, dimz = image.shape
 
-#     # training_data = array(training_data)
-#     # testing_data = array(testing_data)
-#     # training_labels = classes_to_onehot(classes=training_labels, length=10)
-#     # testing_labels  = classes_to_onehot(classes=testing_labels, length=10)
+    def main(_):
 
-#     # # plt.imshow(training_data[0, :, :, :])
-#     # # plt.show()
+        if tf.gfile.Exists(path):
+            tf.gfile.DeleteRecursively(path)
+        tf.gfile.MakeDirs(path)
 
-#     # convolution(training_data, training_labels, testing_data, testing_labels, fdim=2, features=50, classes=10,
-#     #             dimx=dimx, dimy=dimy, channels=3, steps=1000, batch=300, neurons=2000, multi_layer=True)
+        train()
+
+        print('***** Session finished *****')
+
+    tf.app.run(main=main)
+
+
+# ==============================================================================
+# Main
+# ==============================================================================
+
+if __name__ == "__main__":
+
+    # ------------------------------------------------------------------------------
+    # MNIST
+    # ------------------------------------------------------------------------------
+
+    # from scipy.misc import imread
+
+    # from os import listdir
+
+    # folder = '/home/al/compas_ml/data/mnist/'
+
+    # training_data   = []
+    # testing_data    = []
+    # training_labels = []
+    # testing_labels  = []
+
+    # for i in ['testing', 'training']:
+    #     for j in range(10):
+
+    #         prefix = '{0}/{1}/{2}'.format(folder, i, j)
+    #         files  = listdir(prefix)[:100]
+
+    #         for file in files:
+
+    #             image = imread('{0}/{1}'.format(prefix, file))
+    #             if i == 'training':
+    #                 training_data.append(image)
+    #                 training_labels.append(j)
+    #             else:
+    #                 testing_data.append(image)
+    #                 testing_labels.append(j)
+
+    # path = '/home/al/temp/'
+
+    # convolution(training_data, training_labels, testing_data, testing_labels, classes=10, fdim=5, features=32,
+    #             neurons=1024, steps=200, batch=200, path=path)
+
+
+    # ------------------------------------------------------------------------------
+    # CIFAR10 (currently doesnt fit well)
+    # ------------------------------------------------------------------------------
+
+    from scipy.misc import imread
+
+    from os import listdir
+
+    import json
+
+    folder = '/home/al/compas_ml/data/cifar10/'
+
+    training_data   = []
+    testing_data    = []
+    training_labels = []
+    testing_labels  = []
+
+    with open(folder + 'columns.json', 'r') as f:
+        labels = json.load(f)
+
+    for i in ['testing', 'training']:
+
+        prefix = '{0}/{1}/'.format(folder, i)
+
+        for file in listdir(prefix):
+
+            image = imread('{0}/{1}'.format(prefix, file))
+            j = labels[file.split('_')[1][:-4]]
+
+            if i == 'training':
+                training_data.append(image)
+                training_labels.append(j)
+
+            else:
+                testing_data.append(image)
+                testing_labels.append(j)
+
+    path = '/home/al/temp/'
+
+    convolution(training_data, training_labels, testing_data, testing_labels, fdim=5, features=50, classes=10,
+                steps=500, batch=300, neurons=1000, multi_layer=0, path=path)

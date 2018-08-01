@@ -89,4 +89,4 @@ def colour_weights(path):
 
 if __name__ == "__main__":
 
-    colour_weights(path='/home/al/downloads/ss.png')
+    colour_weights(path='/home/al/downloads/s2.png')

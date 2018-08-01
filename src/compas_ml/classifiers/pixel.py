@@ -125,8 +125,6 @@ def pixel(training_data, training_labels, testing_data, testing_labels, classes,
 
                 with tf.name_scope('preactivation'):
                     preactivate = tf.matmul(input, weights) + biases
-                    print(weights.shape)
-                    print(biases.shape)
                     tf.summary.histogram('preactivations', preactivate)
 
                 activations = activation(preactivate, name='activation')
@@ -231,39 +229,87 @@ def pixel(training_data, training_labels, testing_data, testing_labels, classes,
 
 if __name__ == "__main__":
 
+    # -----------------------------------------------------------------------------------------------
     # MNIST
+    # -----------------------------------------------------------------------------------------------
 
-    # from scipy.misc import imread
+    from scipy.misc import imread
 
-    # from os import listdir
+    from os import listdir
 
-    # path = '/home/al/compas_ml/data/mnist/'
+    path = '/home/al/compas_ml/data/mnist/'
 
-    # training_data   = []
-    # testing_data    = []
-    # training_labels = []
-    # testing_labels  = []
+    training_data   = []
+    testing_data    = []
+    training_labels = []
+    testing_labels  = []
 
-    # for i in ['testing', 'training']:
+    for i in ['testing', 'training']:
+        for j in range(10):
+
+            prefix = '{0}/{1}/{2}'.format(path, i, j)
+            files  = listdir(prefix)[:100]
+
+            for file in files:
+
+                image = imread('{0}/{1}'.format(prefix, file))
+                if i == 'training':
+                    training_data.append(image)
+                    training_labels.append(j)
+                else:
+                    testing_data.append(image)
+                    testing_labels.append(j)
+
+    path = '/home/al/temp/'
+
+    pixel(training_data, training_labels, testing_data, testing_labels, classes=10, steps=500, batch=200, path=path,
+          neurons=1024)
+
+    # -----------------------------------------------------------------------------------------------
+    # Odd Even
+    # -----------------------------------------------------------------------------------------------
+
+    # from numpy import zeros
+
+    # from matplotlib import pyplot as plt
+
+    # import pandas
+
+    # folder = '/home/al/compas_ml/data/oddeven/'
+
+    # training_data_str    = list(dict(pandas.read_csv('{0}training_data.csv'.format(folder))['sequence']).values())
+    # testing_data_str     = list(dict(pandas.read_csv('{0}testing_data.csv'.format(folder))['sequence']).values())
+    # training_labels      = list(dict(pandas.read_csv('{0}training_labels.csv'.format(folder))['label']).values())
+    # testing_labels       = list(dict(pandas.read_csv('{0}testing_labels.csv'.format(folder))['label']).values())
+
+    # m = len(training_data_str)
+    # p = len(testing_data_str)
+
+    # training_data = [0] * m
+    # testing_data  = [0] * p
+
+    # for i in range(m):
+    #     text = training_data_str[i].replace('-', '10')
+    #     ints = [int(j) for j in text.split()]
+    #     image = zeros((11, 10))
     #     for j in range(10):
+    #         image[ints[j], j] = 1
+    #     training_data[i] = image
 
-    #         prefix = '{0}/{1}/{2}'.format(path, i, j)
-    #         files  = listdir(prefix)[:100]
+    # for i in range(p):
+    #     text = testing_data_str[i].replace('-', '10')
+    #     ints = [int(j) for j in text.split()]
+    #     image = zeros((11, 10))
+    #     for j in range(10):
+    #         image[ints[j], j] = 1
+    #     testing_data[i] = image
 
-    #         for file in files:
-
-    #             image = imread('{0}/{1}'.format(prefix, file))
-    #             if i == 'training':
-    #                 training_data.append(image)
-    #                 training_labels.append(j)
-    #             else:
-    #                 testing_data.append(image)
-    #                 testing_labels.append(j)
+    # # plt.imshow(testing_data[60])
+    # # plt.show()
 
     # path = '/home/al/temp/'
 
-    # pixel(training_data, training_labels, testing_data, testing_labels, classes=10, steps=500, batch=200, path=path,
+    # # print(training_data[0].shape)
+
+    # pixel(training_data, training_labels, testing_data, testing_labels, classes=2, steps=500, batch=200, path=path,
     #       neurons=1024)
-
-
-    # Odd Even
