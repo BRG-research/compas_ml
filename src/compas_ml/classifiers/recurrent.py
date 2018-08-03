@@ -114,14 +114,24 @@ def recurrent(training_data, training_labels, testing_data, testing_labels, clas
         embeddings = tf.Variable(tf.random_uniform([size, dimension], -1.0, 1.0), name='embedding')
         embed = tf.nn.embedding_lookup(embeddings, x)
 
-    with tf.variable_scope('lstm'):
+    with tf.variable_scope('bigru'):
 
-        lstm_cell = tf.contrib.rnn.BasicLSTMCell(neurons, forget_bias=1.0)
-        outputs, states = tf.nn.dynamic_rnn(lstm_cell, embed, sequence_length=z, dtype=tf.float32)
+        with tf.variable_scope('forward'):
+            gru_fw_cell = tf.contrib.rnn.GRUCell(neurons)
+            gru_fw_cell = tf.contrib.rnn.DropoutWrapper(gru_fw_cell)
 
-    weights = tf.Variable(tf.truncated_normal([neurons, classes], mean=0, stddev=0.01))
+        with tf.variable_scope('backward'):
+            gru_bw_cell = tf.contrib.rnn.GRUCell(neurons)
+            gru_bw_cell = tf.contrib.rnn.DropoutWrapper(gru_bw_cell)
+
+        outputs, states = tf.nn.bidirectional_dynamic_rnn(cell_fw=gru_fw_cell, cell_bw=gru_bw_cell, inputs=embed,
+                                                          sequence_length=z, dtype=tf.float32, scope='bigru')
+        states = tf.concat(values=states, axis=1)
+
+    weights = tf.Variable(tf.truncated_normal([2 * neurons, classes], mean=0, stddev=0.01))
     bias    = tf.Variable(tf.truncated_normal([classes], mean=0, stddev=0.01))
-    logits  = tf.matmul(states[1], weights + bias)
+    # logits  = tf.matmul(states[1], weights + bias)
+    logits  = tf.matmul(states, weights + bias)
 
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y))
     train_step = tf.train.RMSPropOptimizer(0.001, 0.9).minimize(loss)

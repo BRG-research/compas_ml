@@ -267,7 +267,7 @@ if __name__ == "__main__":
     #     for j in range(10):
 
     #         prefix = '{0}/{1}/{2}'.format(folder, i, j)
-    #         files  = listdir(prefix)[:100]
+    #         files  = listdir(prefix)
 
     #         for file in files:
 
