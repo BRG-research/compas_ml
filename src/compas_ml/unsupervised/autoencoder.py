@@ -101,14 +101,14 @@ def plot_results(models, data, batch_size):
     x, y = data
     z_mean, _, _ = encoder.predict(x, batch_size=batch_size)
 
-    plt.figure(figsize=(12, 10))
+    plt.figure(figsize=(10, 10))
     plt.scatter(z_mean[:, 0], z_mean[:, 1], c=y)
     plt.colorbar()
     plt.xlabel("z[0]")
     plt.ylabel("z[1]")
     plt.show()
 
-    n = 30
+    n = 50
     digit_size = 28
 
     figure = zeros((digit_size * n, digit_size * n))
@@ -187,4 +187,4 @@ if __name__ == "__main__":
     testing_data   = reshape(testing_data, [-1, length])
     testing_labels = testing_labels
 
-    autoencoder(training_data, training_labels, length=length, neurons=100, batch=300, epochs=50)
+    autoencoder(training_data, training_labels, length=length, neurons=1000, batch=500, epochs=100)
