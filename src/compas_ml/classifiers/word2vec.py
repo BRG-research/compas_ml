@@ -60,9 +60,8 @@ if __name__ == "__main__":
     for sent in sentences:
         tokenized_sent = sent.split()
         for i in range(1, len(tokenized_sent) - 1):
-            word_context_pair = [[word2index_map[tokenized_sent[i - 1]],
-                                  word2index_map[tokenized_sent[i + 1]]],
-                                  word2index_map[tokenized_sent[i]]]
+            word_context_pair = [[word2index_map[tokenized_sent[i - 1]], word2index_map[tokenized_sent[i + 1]]],
+                                 word2index_map[tokenized_sent[i]]]
             skip_gram_pairs.append([word_context_pair[1], word_context_pair[0][0]])
             skip_gram_pairs.append([word_context_pair[1], word_context_pair[0][1]])
 
