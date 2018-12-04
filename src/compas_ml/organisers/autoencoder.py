@@ -43,8 +43,7 @@ def autoencoder(training_data, training_labels, length, neurons, batch, epochs, 
     z_mean   = Dense(latent_dim, name='z_mean')(x)
     z_logvar = Dense(latent_dim, name='z_logvar')(x)
     z        = Lambda(sampling, output_shape=(latent_dim, ), name='z')([z_mean, z_logvar])
-
-    encoder = Model(inputs, [z_mean, z_logvar, z], name='encoder')
+    encoder  = Model(inputs, [z_mean, z_logvar, z], name='encoder')
 
     latent_inputs = Input(shape=(latent_dim, ), name='z_sampling')
     x = Dense(neurons, activation='relu')(latent_inputs)
@@ -61,17 +60,19 @@ def autoencoder(training_data, training_labels, length, neurons, batch, epochs, 
     args = parser.parse_args()
 
     models = (encoder, decoder)
-    data = (training_data, training_labels)
+    data   = (training_data, training_labels)
 
     if args.mse:
         reconstruction_loss = mse(inputs, outputs)
     else:
         reconstruction_loss = binary_crossentropy(inputs, outputs)
+
     reconstruction_loss *= length
 
-    kl_loss = 1 + z_logvar - backend.square(z_mean) - backend.exp(z_logvar)
-    kl_loss = backend.sum(kl_loss, axis=-1)
-    kl_loss *= -0.5
+    kl_loss  = 1 + z_logvar - backend.square(z_mean) - backend.exp(z_logvar)
+    kl_loss  = backend.sum(kl_loss, axis=-1)
+    kl_loss  *= -0.5
+
     vae_loss = backend.mean(reconstruction_loss + kl_loss)
     vae.add_loss(vae_loss)
     vae.compile(optimizer='adam')
@@ -117,14 +118,16 @@ def plot_results(models, data, batch_size):
 
     for i, yi in enumerate(grid_y):
         for j, xi in enumerate(grid_x):
-            z_sample = array([[xi, yi]])
+
+            z_sample  = array([[xi, yi]])
             x_decoded = decoder.predict(z_sample)
-            digit = x_decoded[0].reshape(digit_size, digit_size)
+            digit     = x_decoded[0].reshape(digit_size, digit_size)
+
             figure[i * digit_size: (i + 1) * digit_size, j * digit_size: (j + 1) * digit_size] = digit
 
-    start_range = digit_size // 2
-    end_range = n * digit_size + start_range + 1
-    pixel_range = arange(start_range, end_range, digit_size)
+    start_range    = digit_size // 2
+    end_range      = n * digit_size + start_range + 1
+    pixel_range    = arange(start_range, end_range, digit_size)
     sample_range_x = round(grid_x, 1)
     sample_range_y = round(grid_y, 1)
 
@@ -147,10 +150,12 @@ if __name__ == "__main__":
     # MNIST
     # ------------------------------------------------------------------------------
 
+    # Note: this analysis takes a while
+
     from numpy import float32
     from numpy import reshape
 
-    from scipy.misc import imread
+    from imageio import imread
 
     from os import listdir
 
@@ -170,9 +175,11 @@ if __name__ == "__main__":
             for file in files:
 
                 image = imread('{0}/{1}'.format(prefix, file))
+
                 if i == 'training':
                     training_data.append(image)
                     training_labels.append(j)
+
                 else:
                     testing_data.append(image)
                     testing_labels.append(j)

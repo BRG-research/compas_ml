@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from compas_ml.helpers import labels_to_onehot
+from compas_ml.utilities import labels_to_onehot
 
 from numpy import array
 from numpy import float32
@@ -57,6 +57,8 @@ def convolution(training_data, training_labels, testing_data, testing_labels, cl
         Batch size of images per step.
     path : str
         Model directory.
+    multi_layer : bool
+        Multiple convolution layers.
 
     Returns
     -------
@@ -72,8 +74,8 @@ def convolution(training_data, training_labels, testing_data, testing_labels, cl
     dims = training_data.shape
 
     if len(dims) == 3:
-        m, dimx, dimy = dims
         channels = 1
+        m, dimx, dimy = dims
         training_data = training_data[:, :, :, newaxis]
         testing_data  = testing_data[:, :, :, newaxis]
 
@@ -89,6 +91,7 @@ def convolution(training_data, training_labels, testing_data, testing_labels, cl
         session = tf.InteractiveSession()
 
         with tf.name_scope('input'):
+
             x = tf.placeholder(tf.float32, [None, dimx, dimy, channels])
             y = tf.placeholder(tf.float32, [None, classes])
 
@@ -125,6 +128,7 @@ def convolution(training_data, training_labels, testing_data, testing_labels, cl
             with tf.name_scope(name):
 
                 in_size = int(input.get_shape()[1])
+
                 with tf.name_scope('weights'):
                     weights = weight_variable([in_size, size])
 
@@ -141,55 +145,60 @@ def convolution(training_data, training_labels, testing_data, testing_labels, cl
             # conv1:      -1, dimx, dimy, features
             # conv1_pool: -1, dimx/2, dimy/2, features
             # weights1:   fdim, fdim, channels, features
-            conv1 = conv_layer(x, shape=[fdim, fdim, channels, features], name='conv_1')
+            conv1      = conv_layer(x, shape=[fdim, fdim, channels, features], name='conv_1')
             conv1_pool = max_pool_2x2(conv1)
 
             # conv2:      -1, dimx/2, dimy/2, 2*features
             # conv2_pool: -1, dimx/4, dimy/4, 2*features
             # conv2_flat: -1, dimx/4 * dimy/4 * 2*features
             # weights2:   fdim, fdim, features, 2*features
-            conv2 = conv_layer(conv1_pool, shape=[fdim, fdim, features, 2 * features], name='conv_2')
+            conv2      = conv_layer(conv1_pool, shape=[fdim, fdim, features, 2 * features], name='conv_2')
             conv2_pool = max_pool_2x2(conv2)
             conv2_flat = tf.reshape(conv2_pool, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
 
         else:
 
-            conv1_1 = conv_layer(x_, shape=[fdim, fdim, channels, features])
-            conv1_2 = conv_layer(conv1_1, shape=[fdim, fdim, features, features])
-            conv1_3 = conv_layer(conv1_2, shape=[fdim, fdim, features, features])
+            conv1_1    = conv_layer(x, shape=[fdim, fdim, channels, features])
+            conv1_2    = conv_layer(conv1_1, shape=[fdim, fdim, features, features])
+            conv1_3    = conv_layer(conv1_2, shape=[fdim, fdim, features, features])
             conv1_pool = max_pool_2x2(conv1_3)
             conv1_drop = tf.nn.dropout(conv1_pool, keep_prob=keep_prob)
 
-            conv2_1 = conv_layer(conv1_drop, shape=[fdim, fdim, features, 2 * features])
-            conv2_2 = conv_layer(conv2_1, shape=[fdim, fdim, 2 * features, 2 * features])
-            conv2_3 = conv_layer(conv2_2, shape=[fdim, fdim, 2 * features, 2 * features])
+            conv2_1    = conv_layer(conv1_drop, shape=[fdim, fdim, features, 2 * features])
+            conv2_2    = conv_layer(conv2_1, shape=[fdim, fdim, 2 * features, 2 * features])
+            conv2_3    = conv_layer(conv2_2, shape=[fdim, fdim, 2 * features, 2 * features])
             conv2_pool = max_pool_2x2(conv2_3)
             conv2_drop = tf.nn.dropout(conv2_pool, keep_prob=keep_prob)
             conv2_flat = tf.reshape(conv2_drop, [-1, int(0.25 * 0.25 * dimx * dimy * 2 * features)])
 
         # full1: -1, neurons
-        full1 = tf.nn.relu(full_layer(conv2_flat, size=neurons, name='full_1'))
+        full1      = tf.nn.relu(full_layer(conv2_flat, size=neurons, name='full_1'))
         full1_drop = tf.nn.dropout(full1, keep_prob=keep_prob)
 
         # logits: -1, classes
         logits = full_layer(full1_drop, size=classes, name='logits')
 
         with tf.name_scope('loss'):
+
             with tf.name_scope('total'):
-                loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=logits))
+                loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits=logits))
+
         tf.summary.scalar('loss', loss)
 
         with tf.name_scope('train'):
             train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 
         with tf.name_scope('accuracy'):
+
             with tf.name_scope('correct_prediction'):
                 correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(y, 1))
+
             with tf.name_scope('accuracy'):
                 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
         tf.summary.scalar('accuracy', accuracy)
 
-        merged = tf.summary.merge_all()
+        merged          = tf.summary.merge_all()
         training_writer = tf.summary.FileWriter('{0}/training/'.format(path), session.graph)
         testing_writer  = tf.summary.FileWriter('{0}/testing/'.format(path))
 
@@ -252,77 +261,80 @@ if __name__ == "__main__":
     # MNIST
     # ------------------------------------------------------------------------------
 
-    # from scipy.misc import imread
-
-    # from os import listdir
-
-    # folder = '/home/al/compas_ml/data/mnist/'
-
-    # training_data   = []
-    # testing_data    = []
-    # training_labels = []
-    # testing_labels  = []
-
-    # for i in ['testing', 'training']:
-    #     for j in range(10):
-
-    #         prefix = '{0}/{1}/{2}'.format(folder, i, j)
-    #         files  = listdir(prefix)
-
-    #         for file in files:
-
-    #             image = imread('{0}/{1}'.format(prefix, file))
-    #             if i == 'training':
-    #                 training_data.append(image)
-    #                 training_labels.append(j)
-    #             else:
-    #                 testing_data.append(image)
-    #                 testing_labels.append(j)
-
-    # path = '/home/al/temp/'
-
-    # convolution(training_data, training_labels, testing_data, testing_labels, classes=10, fdim=5, features=32,
-    #             neurons=1024, steps=200, batch=200, path=path)
-
-
-    # ------------------------------------------------------------------------------
-    # CIFAR10
-    # ------------------------------------------------------------------------------
-
-    from scipy.misc import imread
+    from imageio import imread
 
     from os import listdir
 
-    import json
-
-    folder = '/home/al/compas_ml/data/cifar10/'
+    folder = '/home/al/compas_ml/data/mnist/'
 
     training_data   = []
     testing_data    = []
     training_labels = []
     testing_labels  = []
 
-    with open(folder + 'columns.json', 'r') as f:
-        labels = json.load(f)
-
     for i in ['testing', 'training']:
+        for j in range(10):
 
-        prefix = '{0}/{1}/'.format(folder, i)
+            prefix = '{0}/{1}/{2}'.format(folder, i, j)
+            files  = listdir(prefix)
 
-        for file in listdir(prefix):
+            for file in files:
 
-            image = imread('{0}/{1}'.format(prefix, file))
-            j = labels[file.split('_')[1][:-4]]
+                image = imread('{0}/{1}'.format(prefix, file))
 
-            if i == 'training':
-                training_data.append(image)
-                training_labels.append(j)
+                if i == 'training':
+                    training_data.append(image)
+                    training_labels.append(j)
 
-            else:
-                testing_data.append(image)
-                testing_labels.append(j)
+                else:
+                    testing_data.append(image)
+                    testing_labels.append(j)
 
     path = '/home/al/temp/'
 
-    convolution(training_data, training_labels, testing_data, testing_labels, fdim=5, features=30, classes=10,
-                steps=500, batch=300, neurons=500, multi_layer=0, path=path)
+    convolution(training_data, training_labels, testing_data, testing_labels, classes=10, fdim=5, features=32,
+                neurons=1024, steps=200, batch=200, path=path)
+
+
+    # ------------------------------------------------------------------------------
+    # CIFAR10
+    # ------------------------------------------------------------------------------
+
+    # from imageio import imread
+
+    # from os import listdir
+
+    # import json
+
+
+    # folder = '/home/al/compas_ml/data/cifar10/'
+
+    # training_data   = []
+    # testing_data    = []
+    # training_labels = []
+    # testing_labels  = []
+
+    # with open(folder + 'columns.json', 'r') as f:
+    #     labels = json.load(f)
+
+    # for i in ['testing', 'training']:
+
+    #     prefix = '{0}/{1}/'.format(folder, i)
+
+    #     for file in listdir(prefix):
+
+    #         image = imread('{0}/{1}'.format(prefix, file))
+    #         j = labels[file.split('_')[1][:-4]]
+
+    #         if i == 'training':
+    #             training_data.append(image)
+    #             training_labels.append(j)
+
+    #         else:
+    #             testing_data.append(image)
+    #             testing_labels.append(j)
+
+    # path = '/home/al/temp/'
+
+    # convolution(training_data, training_labels, testing_data, testing_labels, fdim=3, features=30, classes=10,
+    #             steps=500, batch=300, neurons=500, multi_layer=False, path=path)

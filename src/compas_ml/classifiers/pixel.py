@@ -5,7 +5,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from compas_ml.helpers import labels_to_onehot
+from compas_ml.utilities import labels_to_onehot
 
 from numpy import array
 from numpy import float32
@@ -66,11 +66,11 @@ def pixel(training_data, training_labels, testing_data, testing_labels, classes,
     testing_data  = array(testing_data, dtype=float32)
 
     dims = training_data.shape
-    p = testing_data.shape[0]
+    p    = testing_data.shape[0]
 
     if len(dims) == 3:
-        m, dimx, dimy = dims
         channels = 1
+        m, dimx, dimy = dims
         training_data = training_data[:, :, :, newaxis]
         testing_data  = testing_data[:, :, :, newaxis]
 
@@ -104,8 +104,10 @@ def pixel(training_data, training_labels, testing_data, testing_labels, classes,
             with tf.name_scope('summaries'):
                 mean = tf.reduce_mean(var)
                 tf.summary.scalar('mean', mean)
+
             with tf.name_scope('stddev'):
                 stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+
             tf.summary.scalar('stddev', stddev)
             tf.summary.scalar('max', tf.reduce_max(var))
             tf.summary.scalar('min', tf.reduce_min(var))
@@ -147,7 +149,7 @@ def pixel(training_data, training_labels, testing_data, testing_labels, classes,
 
         for i in range(classes):
 
-            weights_split = weights_classes[i]
+            weights_split    = weights_classes[i]
             weights_channels = tf.split(weights_split, channels, axis=2)
 
             for j in range(channels):
@@ -156,21 +158,26 @@ def pixel(training_data, training_labels, testing_data, testing_labels, classes,
                 tf.summary.image('class{0}-channel{1}'.format(i, j), image)
 
         with tf.name_scope('loss'):
+
             with tf.name_scope('total'):
-                loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=logits))
+                loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=y, logits=logits))
+
         tf.summary.scalar('loss', loss)
 
         with tf.name_scope('train'):
             train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 
         with tf.name_scope('accuracy'):
+
             with tf.name_scope('correct_prediction'):
                 correct_prediction = tf.equal(tf.argmax(logits, 1), tf.argmax(y, 1))
+
             with tf.name_scope('accuracy'):
                 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
         tf.summary.scalar('accuracy', accuracy)
 
-        merged = tf.summary.merge_all()
+        merged          = tf.summary.merge_all()
         training_writer = tf.summary.FileWriter('{0}/training/'.format(path), session.graph)
         testing_writer  = tf.summary.FileWriter('{0}/testing/'.format(path))
 
@@ -233,83 +240,93 @@ if __name__ == "__main__":
     # MNIST
     # -----------------------------------------------------------------------------------------------
 
-    from scipy.misc import imread
+    # from imageio import imread
 
-    from os import listdir
+    # from os import listdir
 
-    path = '/home/al/compas_ml/data/mnist/'
+    # path = '/home/al/compas_ml/data/mnist/'
 
-    training_data   = []
-    testing_data    = []
-    training_labels = []
-    testing_labels  = []
+    # training_data   = []
+    # testing_data    = []
+    # training_labels = []
+    # testing_labels  = []
 
-    for i in ['testing', 'training']:
-        for j in range(10):
+    # for i in ['testing', 'training']:
+    #     for j in range(10):
 
-            prefix = '{0}/{1}/{2}'.format(path, i, j)
-            files  = listdir(prefix)[:100]
+    #         prefix = '{0}/{1}/{2}'.format(path, i, j)
+    #         files  = listdir(prefix)
 
-            for file in files:
+    #         for file in files:
 
-                image = imread('{0}/{1}'.format(prefix, file))
-                if i == 'training':
-                    training_data.append(image)
-                    training_labels.append(j)
-                else:
-                    testing_data.append(image)
-                    testing_labels.append(j)
+    #             image = imread('{0}/{1}'.format(prefix, file))
 
-    path = '/home/al/temp/'
+    #             if i == 'training':
+    #                 training_data.append(image)
+    #                 training_labels.append(j)
 
-    pixel(training_data, training_labels, testing_data, testing_labels, classes=10, steps=500, batch=200, path=path,
-          neurons=1024)
+    #             else:
+    #                 testing_data.append(image)
+    #                 testing_labels.append(j)
+
+    # path = '/home/al/temp/'
+
+    # pixel(training_data, training_labels, testing_data, testing_labels, classes=10, steps=200, batch=200, path=path,
+    #       neurons=1024)
 
     # -----------------------------------------------------------------------------------------------
     # Odd Even
     # -----------------------------------------------------------------------------------------------
 
-    # from numpy import zeros
+    from compas_ml.utilities import integers_from_csv
+    from compas_ml.utilities import strings_from_csv
 
-    # from matplotlib import pyplot as plt
+    from numpy import zeros
 
-    # import pandas
+    from matplotlib import pyplot as plt
 
-    # folder = '/home/al/compas_ml/data/oddeven/'
 
-    # training_data_str    = list(dict(pandas.read_csv('{0}training_data.csv'.format(folder))['sequence']).values())
-    # testing_data_str     = list(dict(pandas.read_csv('{0}testing_data.csv'.format(folder))['sequence']).values())
-    # training_labels      = list(dict(pandas.read_csv('{0}training_labels.csv'.format(folder))['label']).values())
-    # testing_labels       = list(dict(pandas.read_csv('{0}testing_labels.csv'.format(folder))['label']).values())
+    folder = '/home/al/compas_ml/data/oddeven/'
 
-    # m = len(training_data_str)
-    # p = len(testing_data_str)
+    training_data_str = strings_from_csv(file='{0}training_data.csv'.format(folder))
+    testing_data_str  = strings_from_csv(file='{0}testing_data.csv'.format(folder))
+    training_labels   = integers_from_csv(file='{0}training_labels.csv'.format(folder))
+    testing_labels    = integers_from_csv(file='{0}testing_labels.csv'.format(folder))
 
-    # training_data = [0] * m
-    # testing_data  = [0] * p
+    m = len(training_data_str)
+    p = len(testing_data_str)
 
-    # for i in range(m):
-    #     text = training_data_str[i].replace('-', '10')
-    #     ints = [int(j) for j in text.split()]
-    #     image = zeros((11, 10))
-    #     for j in range(10):
-    #         image[ints[j], j] = 1
-    #     training_data[i] = image
+    training_data = [0] * m
+    testing_data  = [0] * p
 
-    # for i in range(p):
-    #     text = testing_data_str[i].replace('-', '10')
-    #     ints = [int(j) for j in text.split()]
-    #     image = zeros((11, 10))
-    #     for j in range(10):
-    #         image[ints[j], j] = 1
-    #     testing_data[i] = image
+    for i in range(m):
 
-    # # plt.imshow(testing_data[60])
-    # # plt.show()
+        text  = [j if j != '-' else '10' for j in training_data_str[i]]
+        ints  = [int(j) for j in text]
+        image = zeros((11, 10))
 
-    # path = '/home/al/temp/'
+        for j in range(10):
+            image[ints[j], j] = 1
 
-    # # print(training_data[0].shape)
+        training_data[i] = image
 
-    # pixel(training_data, training_labels, testing_data, testing_labels, classes=2, steps=500, batch=200, path=path,
-    #       neurons=1024)
+    for i in range(p):
+
+        text  = [j if j != '-' else '10' for j in testing_data_str[i]]
+        ints  = [int(j) for j in text]
+        image = zeros((11, 10))
+
+        for j in range(10):
+            image[ints[j], j] = 1
+
+        testing_data[i] = image
+
+    # plt.imshow(testing_data[60])
+    # plt.show()
+
+    path = '/home/al/temp/'
+
+    # print(training_data[0].shape)
+
+    pixel(training_data, training_labels, testing_data, testing_labels, classes=2, steps=100, batch=200, path=path,
+          neurons=1024)
