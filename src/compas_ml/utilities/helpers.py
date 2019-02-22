@@ -12,12 +12,6 @@ from numpy import zeros
 from scipy.misc import imread
 
 
-__author__    = ['Andrew Liew <liew@arch.ethz.ch>']
-__copyright__ = 'Copyright 2018, BLOCK Research Group - ETH Zurich'
-__license__   = 'MIT License'
-__email__     = 'liew@arch.ethz.ch'
-
-
 __all__ = [
     'labels_to_onehot',
     'colour_weights',
